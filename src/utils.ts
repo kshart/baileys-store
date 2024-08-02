@@ -1,12 +1,14 @@
-import { toNumber } from '@adiwajshing/baileys';
+import { toNumber } from '@whiskeysockets/baileys';
 import Long from 'long';
 import type { MakeTransformedPrisma, MakeSerializedPrisma } from './types';
+
+// MakeTransformedPrisma<T>
 
 /** Transform object props value into Prisma-supported types */
 export function transformPrisma<T extends Record<string, any>>(
   data: T,
   removeNullable = true
-): MakeTransformedPrisma<T> {
+): any {
   const obj = { ...data } as any;
 
   for (const [key, val] of Object.entries(obj)) {

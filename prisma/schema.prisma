@@ -6,37 +6,38 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
 model Chat {
   pkId                      BigInt   @id @default(autoincrement())
+  apiId                     String
   sessionId                 String
-  archived                  Boolean?
-  contactPrimaryIdentityKey Bytes?
-  conversationTimestamp     BigInt?
+  id                        String
   createdAt                 BigInt?
   createdBy                 String?
-  description               String?
-  disappearingMode          Json?
+  lastMsgTimestamp          BigInt?
+  archived                  Boolean?
+  messages                  Json?
+  name                      String?
   displayName               String?
+  description               String?
+  notSpam                   Boolean?
   endOfHistoryTransfer      Boolean?
   endOfHistoryTransferType  Int?
+  contactPrimaryIdentityKey Bytes?
+  conversationTimestamp     BigInt?
+  disappearingMode          Json?
   ephemeralExpiration       Int?
   ephemeralSettingTimestamp BigInt?
-  id                        String
   isDefaultSubgroup         Boolean?
   isParentGroup             Boolean?
-  lastMsgTimestamp          BigInt?
   lidJid                    String?
   markedAsUnread            Boolean?
   mediaVisibility           Int?
-  messages                  Json?
   muteEndTime               BigInt?
-  name                      String?
   newJid                    String?
-  notSpam                   Boolean?
   oldJid                    String?
   pHash                     String?
   parentGroupId             String?
@@ -56,13 +57,22 @@ model Chat {
   unreadMentionCount        Int?
   wallpaper                 Json?
   lastMessageRecvTimestamp  Int?
+  commentsCount             Int?
+
+  username      String?
+  lidOriginType String?
+
+  channel Channel @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  messageModels Message[]
 
   @@unique([sessionId, id], map: "unique_id_per_session_id_chat")
   @@index([sessionId])
+  @@index([apiId])
 }
 
 model Contact {
   pkId         BigInt  @id @default(autoincrement())
+  apiId        String
   sessionId    String
   id           String
   name         String?
@@ -70,13 +80,19 @@ model Contact {
   verifiedName String?
   imgUrl       String?
   status       String?
+  business     Json?
+
+  channel Channel @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([sessionId, id], map: "unique_id_per_session_id_contact")
   @@index([sessionId])
+  @@index([apiId])
 }
 
 model Message {
   pkId                            BigInt   @id @default(autoincrement())
+  chatId                          BigInt? // У прилетевшего сообщения может не быть чата
+  apiId                           String
   sessionId                       String
   remoteJid                       String
   id                              String
@@ -110,6 +126,7 @@ model Message {
   photoChange                     Json?
   pollAdditionalMetadata          Json?
   pollUpdates                     Json?
+  eventResponses                  Json?
   pushName                        String?
   quotedPaymentInfo               Json?
   quotedStickerData               Json?
@@ -123,9 +140,16 @@ model Message {
   urlText                         Boolean?
   userReceipt                     Json?
   verifiedBizName                 String?
+  reportingTokenInfo              Json?
+
+  channel Channel @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chat Chat? @relation(fields: [chatId], references: [pkId], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([sessionId, remoteJid, id], map: "unique_message_key_per_session_id")
   @@index([sessionId])
+  @@index([apiId])
+  @@index([chatId])
+  @@index([messageTimestamp])
 }
 
 model Session {
@@ -134,6 +158,45 @@ model Session {
   id        String
   data      String @db.Text
 
+  channel Channel @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
   @@unique([sessionId, id], map: "unique_id_per_session_id_session")
   @@index([sessionId])
+}
+
+model Channel {
+  id                 String @id
+  contactId          String?
+  state              ChannelState
+  name               String
+  type               String
+  authenticationData Json?
+  createdAt          DateTime @default(now())
+
+  sessions Session[]
+  messages Message[]
+  contacts Contact[]
+  chats    Chat[]
+  webhooks Webhook[]
+}
+
+model Webhook {
+  id           Int @id @default(autoincrement())
+  channelId    String
+  url          String
+  createdAt    DateTime @default(now())
+  lastStatus   Int?
+  lastError    Json?
+  lastErrorAt  DateTime?
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([url, channelId], map: "unique_webhook_key")
+}
+
+enum ChannelState {
+  active // Пользователь залогинен
+  authentication // Идет процесс привязки, данные для привязки хранятся в authenticationData
+  logout // Пользователь отвязал устройство
+  removed // Канал удален из шлюза
 }

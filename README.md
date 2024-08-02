@@ -54,7 +54,7 @@ Before you can actually use this library, you have to setup your database first
 
 ```ts
 import pino from 'pino';
-import makeWASocket from '@adiwajshing/baileys';
+import makeWASocket from '@whiskeysockets/baileys';
 import { PrismaClient } from '@prisma/client';
 import { initStore, Store } from '@ookamiiixd/baileys-store';
 
